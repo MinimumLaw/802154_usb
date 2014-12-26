@@ -40,8 +40,23 @@ void sysclock_init(void)
 {
 	/* disable IOREG protection */
 	CCP = CCP_IOREG_gc;
-	/* System clock dividers A-PER(2), B-PER2(1), C-PER4(1) - all 24MHz */
-	CLK.PSCTRL = CLK_PSADIV_2_gc | CLK_PSBCDIV_1_1_gc;
+	/* System clock dividers A-PER(1), B-PER2(1), C-PER4(1) - all 32MHz (PLL) */
+	CLK.PSCTRL = CLK_PSADIV_1_gc | CLK_PSBCDIV_1_1_gc;
+
+	/* Enable int. 32KHz RC osc. and wait them for ready */
+	OSC.CTRL |= OSC_RC32KEN_bm;
+	while(!(OSC.STATUS & OSC_RC32KRDY_bm));
+
+	/* Enable int. 2MHz RC osc. and wait them for ready */
+	OSC.CTRL |= OSC_RC2MEN_bm;
+	while(!(OSC.STATUS & OSC_RC2MRDY_bm));
+	/* when enable DFLL for int. 2Mhz RC osc. */
+	DFLLRC2M.CTRL = DFLL_ENABLE_bm;
+
+	/* PLL multiple int. 2MHz RC osc. by 16 - output is 32MHz (maximum) */
+	OSC.PLLCTRL = OSC_PLLSRC_RC2M_gc | 16;
+	OSC.CTRL = OSC_PLLEN_bm;
+	while(!(OSC.STATUS & OSC_PLLRDY_bm));
 
 	OSC.CTRL &= ~OSC_RC32MEN_bm;
 	/* calibrate int 32MHz RC osc to 48Mhz clock output */
@@ -57,19 +72,11 @@ void sysclock_init(void)
 	DFLLRC32M.COMP2 = 0xBB;
 	OSC.DFLLCTRL = OSC_RC32MCREF_USBSOF_gc;
 
-	/* use DFLL RC32KHz clock source 
-	DFLLRC32M.COMP1 = 0x1B;
-	DFLLRC32M.COMP2 = 0xB7;	
-	OSC.DFLLCTRL = OSC_RC32MCREF_RC32K_gc; */
-
 	/* DFLL enable */
 	DFLLRC32M.CTRL = DFLL_ENABLE_bm;
 
 	/* disable IOREG protection */
 	CCP = CCP_IOREG_gc;
-	/* then switch clock to INT RC 32MHz source and lock system clock settings */
-	CLK.CTRL = CLK_SCLKSEL_RC32M_gc;
-
-	/* disable unneeded 2MHz int. RC osc */
-	OSC.CTRL &= ~OSC_RC2MEN_bm;
+	/* then switch clock to PLL 32MHz source and lock system clock settings */
+	CLK.CTRL = CLK_SCLKSEL_PLL_gc;
 }

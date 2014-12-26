@@ -22,9 +22,6 @@ ISR_ALIAS(RTC_OVF_vect, RTC_COMP_vect);
 ************************************************/
 void rtc_init(void)
 {
-	/* Enable int. 32KHz RC osc. and wait them for ready */
-	OSC.CTRL |= OSC_RC32KEN_bm;
-	while(!(OSC.STATUS & OSC_RC32KRDY_bm));
 	PR.PRGEN &= ~ PR_RTC_bm; /* enable RTC clock */
 	RTC.PER  = 65535; /* PER and COMP routine is a same */
 	RTC.COMP = 32767; /* 32768 COMP and 65535 OVF caused */

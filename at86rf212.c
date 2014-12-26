@@ -204,7 +204,7 @@ rf_dev* at86rf212_init(void)
 	RF_SPI_PORT.DIRCLR = (PIN6_bm); /* MISO - input */
 
 	RF_SPI_PORT.OUTSET = (PIN5_bm | PIN7_bm);
-	RF_SPI_DEVICE.CTRL = SPI_MASTER_bm | SPI_ENABLE_bm | SPI_PRESCALER_DIV4_gc;
+	RF_SPI_DEVICE.CTRL = SPI_MASTER_bm | SPI_ENABLE_bm | SPI_PRESCALER_DIV16_gc;
 
 	at86rf212.spi_dev = &RF_SPI_DEVICE;
 	at86rf212.fops = & at86rf212_fops;
