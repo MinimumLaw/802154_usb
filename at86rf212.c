@@ -145,8 +145,11 @@ ISR(RF_ISR_VECTOR)
 		at86rf212.isr->battery_low(&at86rf212);
 }
 
+/************************************************************************/
+/* File operations for AT86RF212 chips                                  */
+/************************************************************************/
 /*
- *
+ * Hardware reset chip
  */
 void rf_reset(rf_dev* dev)
 {
@@ -162,18 +165,146 @@ void rf_reset(rf_dev* dev)
 	rf_reg_write(dev, TRX_STATE_REG, TRX_COMMAND_PLL_ON);
 }
 
+/*
+ * Configure basic RF parametrizes (frequency, power, modulations)
+ */
+int8_t rf_configure(rf_dev* dev, uint8_t page, uint8_t channel)
+{
+	switch(page) {
+		/*
+		 * Channel page 0 and 2 standard IEEE802.15.4 compliant
+		 */
+		case 0: /* ch. 0..10 BPSK */
+			if(channel > 10)
+				return -EBADCHANNELL;
+			else if(channel == 0) {
+				/* 868MHz BPSK 20kb/s */
+				rf_reg_write(dev,CC_CTRL_1_REG, 0); // USE PHY_CC_CCA Channel field
+				rf_reg_write(dev,PHY_CC_CCA_REG, (rf_reg_read(dev,PHY_CC_CCA_REG) & 0xE0) | channel);
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0)); /* BPSK 20kb/s */
+			} else {
+				/* 906...924MHz BPSK 40kb/s */
+				rf_reg_write(dev,CC_CTRL_1_REG, 0); // USE PHY_CC_CCA Channel field
+				rf_reg_write(dev,PHY_CC_CCA_REG, (rf_reg_read(dev,PHY_CC_CCA_REG) & 0xE0) | channel);
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x04); /* BPSK 40kb/s */
+			};
+			break;
+		case 2: /* ch. 0..10 O-QPSK */
+			if(channel > 10)
+			return -EBADCHANNELL;
+			else if(channel == 0) {
+				/* 868MHz O-QPSK 100kb/s */
+				rf_reg_write(dev,CC_CTRL_1_REG, 0); // USE PHY_CC_CCA Channel field
+				rf_reg_write(dev,PHY_CC_CCA_REG, (rf_reg_read(dev,PHY_CC_CCA_REG) & 0xE0) | channel);
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x08); /* O-QPSK 100kb/s */
+			} else {
+				/* 906...924MHz O-QPSK 250kb/s */
+				rf_reg_write(dev,CC_CTRL_1_REG, 0); // USE PHY_CC_CCA Channel field
+				rf_reg_write(dev,PHY_CC_CCA_REG, (rf_reg_read(dev,PHY_CC_CCA_REG) & 0xE0) | channel);
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0C); /* O-QPSK 250kb/s */
+			};
+			break;
+		/*
+		 * Channel page 10 and 11 standard IEEE802.15.4 compliant frequency,
+		 * but have extended PSDU speed (chip vendor extension)
+		 */
+		case 10: /* standard ch. 0..10 O-QPSK - extended PSDU data rate */
+			if(channel > 10)
+				return -EBADCHANNELL;
+			else if(channel == 0) {
+				/* 868MHz O-QPSK 200kb/s */
+				rf_reg_write(dev,CC_CTRL_1_REG, 0); // USE PHY_CC_CCA Channel field
+				rf_reg_write(dev,PHY_CC_CCA_REG, (rf_reg_read(dev,PHY_CC_CCA_REG) & 0xE0) | channel);
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x09); /* O-QPSK 200kb/s */
+			} else {
+				/* 906...924MHz O-QPSK 500kb/s */
+				rf_reg_write(dev,CC_CTRL_1_REG, 0); // USE PHY_CC_CCA Channel field
+				rf_reg_write(dev,PHY_CC_CCA_REG, (rf_reg_read(dev,PHY_CC_CCA_REG) & 0xE0) | channel);
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0D); /* O-QPSK 500kb/s */
+			};
+			break;
+		case 11: /* standard ch. 0..10 O-QPSK - extended PSDU data rate */
+			if(channel > 10)
+				return -EBADCHANNELL;
+			else if(channel == 0) {
+				/* 868MHz O-QPSK 400kb/s */
+				rf_reg_write(dev,CC_CTRL_1_REG, 0); // USE PHY_CC_CCA Channel field
+				rf_reg_write(dev,PHY_CC_CCA_REG, (rf_reg_read(dev,PHY_CC_CCA_REG) & 0xE0) | channel);
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0A); /* O-QPSK 400kb/s */
+			} else {
+				/* 906...924MHz O-QPSK 1000kb/s */
+				rf_reg_write(dev,CC_CTRL_1_REG, 0); // USE PHY_CC_CCA Channel field
+				rf_reg_write(dev,PHY_CC_CCA_REG, (rf_reg_read(dev,PHY_CC_CCA_REG) & 0xE0) | channel);
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0E); /* O-QPSK 1000kb/s */
+			};
+			break;
+		/*
+		 * Channel page 12,13,14 and later have 26 channel with freq 880..905Mhz
+		 * OAO Radioavionica and Russian RGSN extension
+		 */
+		case 12: /* CC_BAND=5, CC_NUMBER=47..72, O-QPSK 250kb/s */
+			rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0C); /* O-QPSK 250kb/s */
+			break;
+		case 13: /* CC_BAND=5, CC_NUMBER=47..72, O-QPSK 500kb/s */
+			rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0D); /* O-QPSK 500kb/s */
+			break;
+		case 14: /* CC_BAND=5, CC_NUMBER=47..72, O-QPSK 1000kb/s */
+			rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0E); /* O-QPSK 1000kb/s */
+			break;
+		/*
+		 * Channel page 15,16,17 have 9 channels with freq 906..915Mhz
+		 * and 10 channels with freq 925...935Mhz (0..8 and 9..19)
+		 * OAO Radioavionica and Russian RGSN extension
+		 */
+		case 15: /* CC_BAND=5, O-QPSK 250kb/s */
+			if(channel > 19)
+				return -EBADCHANNELL;
+			else if(channel > 8) {
+				/* CC_NUMBER=73..82 */
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0C); /* O-QPSK 250kb/s */
+			} else {
+				/* CC_NUMBER=92..102 */
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0C); /* O-QPSK 250kb/s */
+			};
+		case 16: /* CC_BAND=5, O-QPSK 500kb/s */
+			if(channel > 19)
+				return -EBADCHANNELL;
+			else if(channel > 8) {
+				/* CC_NUMBER=73..82 */
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0D); /* O-QPSK 500kb/s */
+			} else {
+				/* CC_NUMBER=92..102 */
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0D); /* O-QPSK 500kb/s */
+			};
+		case 17: /* CC_BAND=5, O-QPSK 1000kb/s */
+			if(channel > 19)
+				return -EBADCHANNELL;
+			else if(channel > 8) {
+				/* CC_NUMBER=73..82 */
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0E); /* O-QPSK 1000kb/s */
+			} else {
+				/* CC_NUMBER=92..102 */
+				rf_reg_write(dev,TRX_CTRL_2_REG, (rf_reg_read(dev,TRX_CTRL_2_REG) & 0xF0) | 0x0E); /* O-QPSK 1000kb/s */
+		};
+		default:
+			return -EBADPAGE;
+	};
+	return ESUCCESS;
+}
+
 void rf_update_status(rf_dev* dev)
 { /* read unused register (0x00) simple update device status */
 	rf_reg_read(dev, DUMMY_EMPTY_REG);
 }
 
-uint8_t rf_frame_send(rf_dev* dev, uint8_t* frame, size_t len)
+int8_t rf_frame_send(rf_dev* dev, uint8_t* frame, size_t len)
 { /* send frame to RF device (radio transmit) */
 	return 0;
 }
 
 struct at86rf_fops	at86rf212_fops = {
 	.reset = &rf_reset,
+	.configure = &rf_configure,
 	.update_status = &rf_update_status,
 	.frame_send = &rf_frame_send,
 };

@@ -46,8 +46,13 @@ struct at86rf_fops;
 #define PHY_ED_LEVEL_REG	0x07
 #define PHY_CC_CCA_REG	0x08
 
+#define TRX_CTRL_2_REG	0x0C
+
 #define IRQ_MASK_REG	0x0E
 #define IRQ_STATUS_REG	0x0F
+
+#define CC_CTRL_0_REG	0x13
+#define CC_CTRL_1_REG	0x14
 
 #define TRX_CTRL_PA_EXT_EN			BIT(7)
 #define TRX_CTRL_IRQ2_EXT_EN		BIT(6)
@@ -87,12 +92,29 @@ struct at86rf_fops;
 #define TRX_COMMAND_RX_AACK_ON			0x16
 #define TRX_COMMAND_RX_ARET_ON			0x19
 
+/* error codes for RF functions */
+enum retval {
+	ESUCCESS = 0,
+	EBADPAGE,
+	EBADCHANNELL,
+};
+
 struct at86rf_device {
 	SPI_t					*spi_dev;
+	struct wpan_pib			*pib;
 	struct at86rf_isr		*isr;
 	struct at86rf_fops		*fops;
 	uint8_t					state;
 	uint8_t recv_buff[132]; // PHY_STATUS + PHR(LEN) + PSDU(127 MAX) + LQI + ED + RX_STATUS
+};
+
+struct wpan_pib {
+	/* WARNING!!! All members _MUST_ be LE */
+	uint64_t	long_addr;
+	uint16_t	short_addr;
+	uint16_t	pan_id;
+	uint16_t	channel_page;
+	uint8_t		channel;
 };
 
 struct at86rf_isr {
@@ -108,9 +130,10 @@ struct at86rf_isr {
 
 struct at86rf_fops {
 	void	(*reset)(struct at86rf_device* dev);
+	int8_t	(*configure)(struct at86rf_device* dev, uint8_t page, uint8_t channel);
 	void	(*update_status)(struct at86rf_device* dev);
-	uint8_t	(*frame_send)(struct at86rf_device* dev, uint8_t *frame, size_t len);
-	uint8_t	(*frame_recv_callback)(struct at86rf_device* dev, uint8_t *frame, size_t len, uint8_t lqi);
+	int8_t	(*frame_send)(struct at86rf_device* dev, uint8_t *frame, size_t len);
+	int8_t	(*frame_recv_callback)(struct at86rf_device* dev, uint8_t *frame, size_t len, uint8_t lqi);
 };
 
 typedef struct at86rf_device rf_dev;
